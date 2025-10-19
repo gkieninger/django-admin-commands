@@ -137,7 +137,11 @@ class CallCommandAdmin(admin.ModelAdmin):
     def get_error(self, obj):
         if not obj.error:
             return ''
-        return format_html(mark_safe(linebreaksbr(obj.error)))
+        try:
+            return format_html(linebreaksbr(obj.error))
+        except Exception:
+            pass
+        return obj.error
 
     get_error.short_description = _('Error')
 
