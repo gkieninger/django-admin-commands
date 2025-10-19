@@ -36,7 +36,7 @@ def sync_commands():
             c.default_args = default_args
             c.deleted = False
             c.save()
-            if not created:
+            if not created and command in commands_in_db:
                 commands_in_db.remove(command)
     ManagementCommand.objects.filter(name__in=commands_in_db).update(deleted=True)
 

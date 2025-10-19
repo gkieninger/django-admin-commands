@@ -96,8 +96,8 @@ class ManagementCommand(models.Model):
             for logger in active_loggers:
                 logger.removeHandler(handler)
 
-        log.output = out.getvalue()
-        log.error = err.getvalue()
+        log.output = out.getvalue().strip()
+        log.error = err.getvalue().strip()
         log.finished = now()
         log.save()
         return True

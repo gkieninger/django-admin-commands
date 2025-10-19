@@ -81,7 +81,10 @@ class CommandAdminBase(admin.ModelAdmin):
         if request.method == 'POST':
             form = ExecuteCommandForm(request.POST)
             if form.is_valid():
-                return self.execute_command_and_return_response(request, command, form.cleaned_data['args'])
+                args = form.cleaned_data['args']
+                if not args:
+                    args = command.default_args
+                return self.execute_command_and_return_response(request, command,args)
 
         else:
             form = ExecuteCommandForm(initial={'command': command.pk})
@@ -118,7 +121,11 @@ class CallCommandAdmin(admin.ModelAdmin):
     def get_output(self, obj):
         if not obj.output:
             return ''
-        return format_html(linebreaksbr(obj.output))
+        try:
+            return format_html(linebreaksbr(obj.output))
+        except Exception:
+            pass
+        return obj.output
 
     get_output.short_description = _('Output')
 
@@ -141,7 +148,7 @@ class CallCommandAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return True # False
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
