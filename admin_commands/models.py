@@ -6,6 +6,8 @@ from django.db import models
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
+from admin_commands.utils import attach_handler
+
 User = get_user_model()
 
 
@@ -71,15 +73,7 @@ class ManagementCommand(models.Model):
 
         # Handler, der Logging-Ausgaben in `out` schreibt
         handler = logging.StreamHandler(out)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
-
-        # 🔹 Handler an alle bekannten Logger anhängen
-        active_loggers = []
-        for _name, logger in logging.root.manager.loggerDict.items():
-            if isinstance(logger, logging.Logger):
-                logger.addHandler(handler)
-                active_loggers.append(logger)
+        active_loggers = attach_handler(handler)
 
         try:
             # Fange alles ab: stdout, stderr UND logging
