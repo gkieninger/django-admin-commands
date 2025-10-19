@@ -1,3 +1,4 @@
+import contextlib
 from io import StringIO
 
 from django.contrib.auth import get_user_model
@@ -31,6 +32,10 @@ class ManagementCommand(models.Model):
     def get_command(self):
         return load_command_class(self.app_label, self.name)
 
+    @property
+    def command_name(self) -> str:
+        return self.name.split('__')[0] if '__' in self.name else self.name
+
     def print_help(self):
         from io import StringIO
 
@@ -53,13 +58,43 @@ class ManagementCommand(models.Model):
         )
         out = StringIO()
         err = StringIO()
-        args = [self.name]
+        args = [self.command_name]
+        # make parameters correct
         if sys_args:
-            args.append(sys_args)
+            if isinstance(sys_args, str):
+                import shlex
+
+                args.extend(shlex.split(sys_args))
+            elif isinstance(sys_args, (list, tuple)):
+                args.extend(sys_args)
+
+        # allow logging to stdout/stderr
+        import logging
+
+        # Handler, der Logging-Ausgaben in `out` schreibt
+        handler = logging.StreamHandler(out)
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+
+        # 🔹 Handler an alle bekannten Logger anhängen
+        active_loggers = []
+        for _name, logger in logging.root.manager.loggerDict.items():
+            if isinstance(logger, logging.Logger):
+                logger.addHandler(handler)
+                active_loggers.append(logger)
+
         try:
-            call_command(*args, stdout=out, stderr=err)
+            # catch stdout + stderr + print + self.stdout.write ab
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                call_command(*args, stdout=out, stderr=err)
         except Exception as e:
             err.write(str(e))
+        finally:
+            # 🔹 Handler wieder entfernen, um Doppel-Logs zu vermeiden
+            for logger in active_loggers:
+                logger.removeHandler(handler)
 
         log.output = out.getvalue()
         log.error = err.getvalue()
