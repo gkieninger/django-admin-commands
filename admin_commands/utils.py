@@ -18,12 +18,19 @@ def sync_commands():
         if type(command) is tuple:
             command, default_args = command
 
+        # gk
+        org_command = command
+        real_command = command
+        if '__' in command:
+            command = command.split('__')[0]
+            real_command = command
         app_label = commands_dict.get(command, None)
+        command = org_command  # gk
 
         if not app_label:
             raise ValueError(f'Command {command} not found in management commands')
         else:
-            command_class = load_command_class(app_label, command)
+            command_class = load_command_class(app_label, real_command)  # switched to real_command
             c, created = ManagementCommand.objects.get_or_create(name=command, app_label=app_label)
             c.help = command_class.help
             c.default_args = default_args
