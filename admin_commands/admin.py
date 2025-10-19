@@ -62,6 +62,11 @@ class CommandAdminBase(admin.ModelAdmin):
     execute_command_link.short_description = _('Execute command')
 
     def execute_command_and_return_response(self, request, command, args):
+        if isinstance(args, str):
+            # Splitte Argumente wie bei der Kommandozeile
+            import shlex
+
+            args = shlex.split(args)
 
         if ADMIN_COMMANDS_CONFIG['use_django_rq']:
             from django_rq import get_queue

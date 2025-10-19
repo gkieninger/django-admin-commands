@@ -1,4 +1,3 @@
-import contextlib
 from io import StringIO
 
 from django.contrib.auth import get_user_model
@@ -29,12 +28,13 @@ class ManagementCommand(models.Model):
     def __str__(self):
         return self.name
 
-    def get_command(self):
-        return load_command_class(self.app_label, self.name)
-
     @property
-    def command_name(self) -> str:
+    def real_command(self):
         return self.name.split('__')[0] if '__' in self.name else self.name
+
+    def get_command(self):
+        command = self.name.split('__')[0] if '__' in self.name else self.name
+        return load_command_class(self.app_label, command)
 
     def print_help(self):
         from io import StringIO
@@ -58,8 +58,7 @@ class ManagementCommand(models.Model):
         )
         out = StringIO()
         err = StringIO()
-        args = [self.command_name]
-        # make parameters correct
+        args = [self.real_command]
         if sys_args:
             if isinstance(sys_args, str):
                 import shlex
@@ -68,15 +67,12 @@ class ManagementCommand(models.Model):
             elif isinstance(sys_args, (list, tuple)):
                 args.extend(sys_args)
 
-        # allow logging to stdout/stderr
         import logging
 
         # Handler, der Logging-Ausgaben in `out` schreibt
         handler = logging.StreamHandler(out)
         handler.setLevel(logging.INFO)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-        )
+        handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
 
         # 🔹 Handler an alle bekannten Logger anhängen
         active_loggers = []
@@ -86,13 +82,13 @@ class ManagementCommand(models.Model):
                 active_loggers.append(logger)
 
         try:
-            # catch stdout + stderr + print + self.stdout.write ab
+            # Fange alles ab: stdout, stderr UND logging
+            import contextlib
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                 call_command(*args, stdout=out, stderr=err)
         except Exception as e:
             err.write(str(e))
         finally:
-            # 🔹 Handler wieder entfernen, um Doppel-Logs zu vermeiden
             for logger in active_loggers:
                 logger.removeHandler(handler)
 
